@@ -7,10 +7,10 @@ import Recipe from "./models/Recipe.js";
 dotenv.config();
 
 const app = express();
+
+// Middleware
 app.use(cors({
-  origin: [
-    "https://marvelous-pastelito-00feb3.netlify.app",
-  ],
+  origin: ["https://marvelous-pastelito-00feb3.netlify.app"],
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   credentials: true
 }));
@@ -23,7 +23,19 @@ mongoose
   .catch((err) => console.error("❌ MongoDB connection error:", err));
 
 // ========================
-// ROUTES
+// ROOT ROUTE
+// ========================
+app.get("/", async (req, res) => {
+  try {
+    const recipes = await Recipe.find().sort({ likes: -1 });
+    res.json(recipes);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ========================
+// OTHER ROUTES
 // ========================
 
 // Get top 6 recipes by likes
@@ -48,16 +60,15 @@ app.get("/recipes", async (req, res) => {
 
 // Get single recipe by numeric ID
 app.get("/recipes/:id", async (req, res) => {
-  const id = Number(req.params.id); // convert to number
+  const id = Number(req.params.id);
   try {
-    const recipe = await Recipe.findOne({ _id: id }); // <--- change here
+    const recipe = await Recipe.findOne({ _id: id });
     if (!recipe) return res.status(404).json({ error: "Recipe not found" });
     res.json(recipe);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
-
 
 // Like/unlike recipe
 app.patch("/recipes/:id/like", async (req, res) => {
@@ -72,12 +83,10 @@ app.patch("/recipes/:id/like", async (req, res) => {
 
     let liked;
     if (recipe.likedBy.includes(email)) {
-      // Unlike
-      recipe.likedBy = recipe.likedBy.filter((e) => e !== email);
+      recipe.likedBy = recipe.likedBy.filter(e => e !== email);
       recipe.likes = Math.max(recipe.likes - 1, 0);
       liked = false;
     } else {
-      // Like
       recipe.likedBy.push(email);
       recipe.likes += 1;
       liked = true;
@@ -92,24 +101,14 @@ app.patch("/recipes/:id/like", async (req, res) => {
 
 // Add new recipe
 app.post("/recipes", async (req, res) => {
-  const {
-    title,
-    cuisine,
-    image,
-    description,
-    ingredients,
-    instructions,
-    prepTime,
-    categories,
-    user,
-  } = req.body;
+  const { title, cuisine, image, description, ingredients, instructions, prepTime, categories, user } = req.body;
 
   if (!title || !user?.name || !user?.email)
     return res.status(400).json({ error: "Title and user info required" });
 
   try {
     const newRecipe = new Recipe({
-      _id: Date.now(), // numeric ID
+      _id: Date.now(),
       title,
       cuisine,
       image,
@@ -121,8 +120,7 @@ app.post("/recipes", async (req, res) => {
       user: {
         name: user.name,
         email: user.email,
-        profilePic:
-          user.profilePic || "https://source.unsplash.com/50x50/?portrait",
+        profilePic: user.profilePic || "https://source.unsplash.com/50x50/?portrait",
       },
       likes: 0,
       likedBy: [],
@@ -139,9 +137,7 @@ app.post("/recipes", async (req, res) => {
 app.get("/recipes/my/:email", async (req, res) => {
   const { email } = req.params;
   try {
-    const myRecipes = await Recipe.find({ "user.email": email }).sort({
-      likes: -1,
-    });
+    const myRecipes = await Recipe.find({ "user.email": email }).sort({ likes: -1 });
     res.json(myRecipes);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -160,9 +156,7 @@ app.delete("/recipes/:id", async (req, res) => {
     if (!recipe) return res.status(404).json({ error: "Recipe not found" });
 
     if (recipe.user.email !== email)
-      return res
-        .status(403)
-        .json({ error: "You can only delete your own recipes" });
+      return res.status(403).json({ error: "You can only delete your own recipes" });
 
     await Recipe.findOneAndDelete({ _id: id });
     res.json({ message: "Recipe deleted successfully" });
@@ -174,17 +168,7 @@ app.delete("/recipes/:id", async (req, res) => {
 // Update recipe (only owner)
 app.put("/recipes/:id", async (req, res) => {
   const id = Number(req.params.id);
-  const {
-    title,
-    cuisine,
-    image,
-    description,
-    ingredients,
-    instructions,
-    prepTime,
-    categories,
-    email,
-  } = req.body;
+  const { title, cuisine, image, description, ingredients, instructions, prepTime, categories, email } = req.body;
 
   if (!email) return res.status(400).json({ error: "Email is required" });
 
@@ -195,7 +179,6 @@ app.put("/recipes/:id", async (req, res) => {
     if (recipe.user.email !== email)
       return res.status(403).json({ error: "You can only update your own recipes" });
 
-    // Update only provided fields
     recipe.title = title || recipe.title;
     recipe.cuisine = cuisine || recipe.cuisine;
     recipe.image = image || recipe.image;
@@ -217,4 +200,3 @@ app.put("/recipes/:id", async (req, res) => {
 // ========================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, "0.0.0.0", () => console.log(`✅ Server running on port ${PORT}`));
-

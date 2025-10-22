@@ -1,0 +1,10 @@
+# Node.js dependencies
+node_modules/
+server/node_modules/
+client/node_modules/
+
+# Environment files
+.env
+
+# React build folder
+client/build/
